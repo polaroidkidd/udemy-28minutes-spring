@@ -1,6 +1,7 @@
 package dev.dle.edu.rest.users;
 
 import dev.dle.edu.rest.exception.UserNotFoundException;
+import dev.dle.edu.rest.jpa.PostRepository;
 import dev.dle.edu.rest.jpa.UserRepository;
 import jakarta.validation.Valid;
 import java.net.URI;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.EntityModel;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +24,13 @@ public class UserJpaResource {
 
 
   private final UserRepository repository;
+  private final PostRepository postRepository;
 
   @Autowired
-  public UserJpaResource(UserRepository repository) {
+  public UserJpaResource(UserRepository repository, PostRepository postRepository) {
     this.repository = repository;
+
+    this.postRepository = postRepository;
   }
 
   @GetMapping("/jpa/users")
@@ -41,7 +46,9 @@ public class UserJpaResource {
       throw new UserNotFoundException("id: " + id);
     }
     EntityModel<User> entityModel = EntityModel.of(user.get());
-
+    WebMvcLinkBuilder link = WebMvcLinkBuilder.linkTo(
+        WebMvcLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
+    entityModel.add(link.withRel("all-users"));
     return entityModel;
   }
 
@@ -59,6 +66,16 @@ public class UserJpaResource {
   public void deleteUser(@PathVariable int id) {
 
     repository.deleteById(id);
+
+  }
+
+  @GetMapping("/jpa/users/{id}/posts")
+  public List<Post> retrievePostsForUser(@PathVariable int id) {
+    Optional<User> user = repository.findById(id);
+    if (user.isEmpty()) {
+      throw new UserNotFoundException("id: " + id);
+    }
+    return user.get().getPosts();
 
   }
 
